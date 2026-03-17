@@ -1,0 +1,373 @@
+import { useState, useEffect } from "react"
+import 'bootstrap/dist/css/bootstrap.min.css'
+import { useNavigate } from "react-router-dom"
+import logo from '../assets/carcardsLogo.png'
+import { openPack, getMyPacks, checkAuth, logout } from "../api"
+
+export default function OpenpacksPage() {
+    const navigation = useNavigate()
+    const [packs, setPacks] = useState(0)
+    const [opening, setOpening] = useState(false)
+    const [lastCard, setLastCard] = useState(null)
+    const [user, setUser] = useState(null)
+    const [showNotifications, setShowNotifications] = useState(false)
+    const [loading, setLoading] = useState(true)
+
+    useEffect(() => {
+        const verifyAuth = async () => {
+            const { authenticated, user } = await checkAuth()
+            if (!authenticated) {
+                navigation('/login')
+                return
+            }
+            setUser(user)
+            await loadPacks()
+            setLoading(false)
+        }
+
+        verifyAuth()
+    }, [navigation])
+
+    const loadPacks = async () => {
+        const res = await getMyPacks()
+        if (res.result) {
+            setPacks(res.packs)
+        }
+    }
+
+    const handleOpenPack = async () => {
+        if (packs <= 0) {
+            alert("You don't have any packs to open!")
+            return
+        }
+
+        setOpening(true)
+        const res = await openPack()
+        setOpening(false)
+
+        if (res.result) {
+            setLastCard(res.card)
+            setPacks(prev => prev - 1)
+            alert(`You got: ${res.card.manufacturer} ${res.card.card_name}!`)
+        } else {
+            alert(res.message || "Failed to open pack")
+        }
+    }
+
+    const handleLogout = async () => {
+        await logout()
+        navigation('/')
+    }
+
+    const goToMain = () => {
+        navigation('/main')
+    }
+
+    const toggleNotifications = () => {
+        setShowNotifications(!showNotifications)
+    }
+
+    // Értesítések minta adatok
+    const notifications = [
+        { id: 1, message: "New card available in market!", time: "2 min ago", read: false },
+        { id: 2, message: "Your offer was accepted", time: "1 hour ago", read: false },
+        { id: 3, message: "Daily bonus available", time: "3 hours ago", read: true },
+        { id: 4, message: "New pack available!", time: "5 hours ago", read: true }
+    ]
+
+    const unreadCount = notifications.filter(n => !n.read).length
+
+    if (loading) {
+        return (
+            <div className="vh-100 d-flex justify-content-center align-items-center" style={{ backgroundColor: '#f5f5f5' }}>
+                <div className="spinner-border text-primary" role="status">
+                    <span className="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        )
+    }
+
+    return (
+        <div className="vh-100 d-flex flex-column">
+            {/* Egységes navbar */}
+            <nav className="navbar" style={{
+                height: '70px',
+                minHeight: '70px',
+                backgroundColor: '#d1d1d1',
+                position: 'relative',
+                zIndex: 1000
+            }}>
+                <div className="container-fluid d-flex align-items-center justify-content-between px-4" style={{ height: '100%' }}>
+                    {/* Bal oldali logo */}
+                    <button
+                        onClick={goToMain}
+                        style={{
+                            background: 'none',
+                            border: 'none',
+                            padding: 0,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center'
+                        }}
+                    >
+                        <img
+                            src={logo}
+                            alt="Car Cards Logo"
+                            style={{ height: '50px', width: 'auto' }}
+                        />
+                    </button>
+
+                    {/* Középen az Open Packs szöveg */}
+                    <span style={{
+                        fontSize: '2rem',
+                        fontWeight: '500',
+                        color: '#000000',
+                        lineHeight: '1',
+                        position: 'absolute',
+                        left: '50%',
+                        transform: 'translateX(-50%)'
+                    }}>
+                        Open Packs
+                    </span>
+
+                    {/* Jobb oldali ikonok */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                        {/* Csengő ikon értesítésekkel */}
+                        <div style={{ position: 'relative' }}>
+                            <button
+                                onClick={toggleNotifications}
+                                style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    color: '#000000',
+                                    fontSize: '1.8rem',
+                                    cursor: 'pointer',
+                                    width: '50px',
+                                    height: '50px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    borderRadius: '50%',
+                                    transition: 'background-color 0.3s ease',
+                                    position: 'relative'
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.target.style.backgroundColor = 'rgba(0, 0, 0, 0.1)'
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.target.style.backgroundColor = 'transparent'
+                                }}
+                            >
+                                🔔
+                                {unreadCount > 0 && (
+                                    <span style={{
+                                        position: 'absolute',
+                                        top: '5px',
+                                        right: '5px',
+                                        backgroundColor: 'red',
+                                        color: 'white',
+                                        borderRadius: '50%',
+                                        width: '20px',
+                                        height: '20px',
+                                        fontSize: '12px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        fontWeight: 'bold'
+                                    }}>
+                                        {unreadCount}
+                                    </span>
+                                )}
+                            </button>
+
+                            {/* Értesítési ablak */}
+                            {showNotifications && (
+                                <div style={{
+                                    position: 'absolute',
+                                    top: '60px',
+                                    right: '0',
+                                    width: '300px',
+                                    backgroundColor: '#ffffff',
+                                    border: '1px solid #ddd',
+                                    borderRadius: '10px',
+                                    boxShadow: '0 5px 15px rgba(0,0,0,0.1)',
+                                    zIndex: 1001,
+                                    overflow: 'hidden'
+                                }}>
+                                    <div style={{
+                                        padding: '15px',
+                                        borderBottom: '1px solid #ddd',
+                                        backgroundColor: '#f5f5f5'
+                                    }}>
+                                        <h4 style={{ margin: 0, color: '#333', fontSize: '1.1rem' }}>Notifications</h4>
+                                    </div>
+                                    <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                                        {notifications.length > 0 ? (
+                                            notifications.map(notif => (
+                                                <div key={notif.id} style={{
+                                                    padding: '12px 15px',
+                                                    borderBottom: '1px solid #eee',
+                                                    backgroundColor: notif.read ? '#ffffff' : '#f0f7ff',
+                                                    cursor: 'pointer',
+                                                    transition: 'background-color 0.2s ease'
+                                                }}
+                                                    onMouseEnter={(e) => e.target.style.backgroundColor = '#e8e8e8'}
+                                                    onMouseLeave={(e) => e.target.style.backgroundColor = notif.read ? '#ffffff' : '#f0f7ff'}
+                                                >
+                                                    <div style={{ color: '#333', fontSize: '0.95rem', marginBottom: '4px' }}>
+                                                        {notif.message}
+                                                    </div>
+                                                    <div style={{ color: '#666', fontSize: '0.8rem' }}>
+                                                        {notif.time}
+                                                    </div>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div style={{ padding: '20px', textAlign: 'center', color: '#666' }}>
+                                                No notifications
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div style={{
+                                        padding: '10px 15px',
+                                        borderTop: '1px solid #ddd',
+                                        backgroundColor: '#f5f5f5',
+                                        textAlign: 'center'
+                                    }}>
+                                        <button
+                                            style={{
+                                                background: 'none',
+                                                border: 'none',
+                                                color: '#3498db',
+                                                cursor: 'pointer',
+                                                fontSize: '0.9rem'
+                                            }}
+                                            onClick={() => alert('Mark all as read')}
+                                        >
+                                            Mark all as read
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Felhasználónév */}
+                        {user && (
+                            <span style={{ color: '#000000', fontSize: '1rem', fontWeight: '500' }}>
+                                {user.username}
+                            </span>
+                        )}
+
+                        {/* Kijelentkezés gomb */}
+                        <button
+                            onClick={handleLogout}
+                            style={{
+                                background: 'none',
+                                border: 'none',
+                                color: '#000000',
+                                fontSize: '1.8rem',
+                                cursor: 'pointer',
+                                width: '50px',
+                                height: '50px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                borderRadius: '50%',
+                                transition: 'background-color 0.3s ease'
+                            }}
+                            onMouseEnter={(e) => {
+                                e.target.style.backgroundColor = 'rgba(0, 0, 0, 0.1)'
+                            }}
+                            onMouseLeave={(e) => {
+                                e.target.style.backgroundColor = 'transparent'
+                            }}
+                        >
+                            ↪
+                        </button>
+                    </div>
+                </div>
+            </nav>
+
+            {/* Világos háttér */}
+            <div className="flex-grow-1 d-flex justify-content-center align-items-center" style={{ backgroundColor: '#f5f5f5' }}>
+                <div className="text-center">
+                    <h2 style={{ fontSize: '2rem', fontWeight: '300', color: '#333', marginBottom: '20px' }}>
+                        You have {packs} pack{packs !== 1 ? 's' : ''}
+                    </h2>
+
+                    {/* Kék gomb */}
+                    <button
+                        style={{
+                            width: '300px',
+                            padding: '20px 0',
+                            fontSize: '1.5rem',
+                            borderRadius: '30px',
+                            border: 'none',
+                            backgroundColor: '#3498db',
+                            color: 'white',
+                            cursor: packs > 0 ? 'pointer' : 'not-allowed',
+                            opacity: packs > 0 ? 1 : 0.5,
+                            marginBottom: '30px',
+                            transition: 'all 0.3s ease'
+                        }}
+                        onMouseEnter={(e) => {
+                            if (packs > 0 && !opening) {
+                                e.target.style.backgroundColor = '#2980b9'
+                                e.target.style.transform = 'scale(1.02)'
+                            }
+                        }}
+                        onMouseLeave={(e) => {
+                            if (packs > 0 && !opening) {
+                                e.target.style.backgroundColor = '#3498db'
+                                e.target.style.transform = 'scale(1)'
+                            }
+                        }}
+                        onClick={handleOpenPack}
+                        disabled={opening || packs === 0}
+                    >
+                        {opening ? 'OPENING...' : '🎁 OPEN PACK'}
+                    </button>
+
+                    {opening && (
+                        <div className="mt-4">
+                            <div className="spinner-border text-primary" role="status">
+                                <span className="visually-hidden">Opening...</span>
+                            </div>
+                        </div>
+                    )}
+
+                    {lastCard && !opening && (
+                        <div className="mt-5">
+                            <h3 style={{ fontSize: '1.5rem', fontWeight: '300', color: '#333', marginBottom: '15px' }}>
+                                Last Card:
+                            </h3>
+                            <div style={{
+                                backgroundColor: '#ffffff',
+                                color: '#333',
+                                borderRadius: '16px',
+                                padding: '20px',
+                                border: '2px solid #3498db',
+                                boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
+                                maxWidth: '300px',
+                                margin: '0 auto'
+                            }}>
+                                <h4 style={{ fontSize: '1.2rem', fontWeight: 'bold', marginBottom: '10px', color: '#333' }}>
+                                    {lastCard.manufacturer} {lastCard.card_name}
+                                </h4>
+                                <p style={{ margin: '5px 0', color: '#666' }}>
+                                    <strong style={{ color: '#333' }}>HP:</strong> {lastCard.horsepower} hp
+                                </p>
+                                <p style={{ margin: '5px 0', color: '#666' }}>
+                                    <strong style={{ color: '#333' }}>0-100:</strong> {lastCard.acceleration}s
+                                </p>
+                                <p style={{ margin: '5px 0', color: '#666' }}>
+                                    <strong style={{ color: '#333' }}>Fuel:</strong> {lastCard.fuel}
+                                </p>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    )
+}
